@@ -1,0 +1,5 @@
+node_modules/
+news.db
+*.log
+.env.local
+.DS_Store
