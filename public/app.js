@@ -31,6 +31,34 @@ function setupEventListeners() {
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') performSearch();
     });
+
+    // Hamburger Menu Toggle
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const navbar = document.getElementById('navbar');
+    
+    if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', () => {
+            hamburgerBtn.classList.toggle('active');
+            navbar.classList.toggle('active');
+        });
+
+        // Close menu when clicking on a category
+        const navButtons = navbar.querySelectorAll('.nav-btn');
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                hamburgerBtn.classList.remove('active');
+                navbar.classList.remove('active');
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburgerBtn.contains(e.target) && !navbar.contains(e.target)) {
+                hamburgerBtn.classList.remove('active');
+                navbar.classList.remove('active');
+            }
+        });
+    }
 }
 
 // Load Categories

@@ -76,6 +76,37 @@ body {
     align-items: center;
 }
 
+/* Hamburger Menu */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 8px;
+    gap: 5px;
+}
+
+.hamburger span {
+    width: 25px;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -7px);
+}
+
 .search-box {
     display: flex;
     background: rgba(0, 212, 255, 0.05);
@@ -167,6 +198,72 @@ body {
     color: var(--primary);
     border-color: var(--primary);
     background: rgba(0, 212, 255, 0.1);
+}
+
+/* Mobile Responsive Navbar */
+@media (max-width: 768px) {
+    .hamburger {
+        display: flex;
+    }
+
+    .navbar {
+        position: fixed;
+        top: 140px;
+        left: 0;
+        right: 0;
+        background: var(--secondary);
+        border-bottom: 2px solid var(--primary);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        z-index: 99;
+    }
+
+    .navbar.active {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .nav-scroll {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0;
+        padding: 0;
+        overflow: visible !important;
+    }
+
+    .nav-btn {
+        width: 100%;
+        text-align: left;
+        padding: 14px 20px;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .nav-btn:first-child {
+        border-top: 1px solid var(--border);
+    }
+
+    .nav-btn.active {
+        background: rgba(0, 212, 255, 0.1);
+        border-color: var(--primary);
+    }
+
+    .nav-btn:hover {
+        background: rgba(0, 212, 255, 0.05);
+    }
+
+    .header .container {
+        flex-direction: row;
+        gap: 15px;
+    }
+
+    .search-box {
+        max-width: none;
+        flex: 1;
+    }
 }
 
 /* Container */
