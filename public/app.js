@@ -36,8 +36,21 @@ function setupEventListeners() {
 // Load Categories
 async function loadCategories() {
     try {
+        console.log('Loading categories from:', API_BASE);
         const response = await fetch(`${API_BASE}/categories`);
+        
+        if (!response.ok) {
+            console.error('Categories fetch error:', response.status);
+            return;
+        }
+        
         const categories = await response.json();
+        console.log('Categories loaded:', categories.length);
+        
+        if (!Array.isArray(categories) || categories.length === 0) {
+            console.warn('No categories received');
+            return;
+        }
         
         categories.forEach(cat => {
             const btn = document.createElement('button');
@@ -67,8 +80,15 @@ async function loadArticles(categoryId = null) {
             url = `${API_BASE}/articles/category/${categoryId}`;
         }
         
+        console.log('Loading articles from:', url);
         const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         allArticles = await response.json();
+        console.log('Articles loaded:', allArticles.length);
         displayedCount = 0;
         
         articlesContainer.innerHTML = '';
@@ -77,12 +97,14 @@ async function loadArticles(categoryId = null) {
         if (allArticles.length > 0) {
             displayFeaturedArticle(allArticles[0]);
             displayArticles(allArticles.slice(1));
+        } else {
+            articlesContainer.innerHTML = '<div class="no-results"><h2>No articles available yet</h2><p>RSS feeds are being fetched. Please refresh in a few moments.</p></div>';
         }
         
         updateLoadMoreButton();
     } catch (error) {
         console.error('Error loading articles:', error);
-        articlesContainer.innerHTML = '<div class="no-results"><h2>Error loading articles</h2></div>';
+        articlesContainer.innerHTML = '<div class="no-results"><h2>Error loading articles</h2><p>' + error.message + '</p></div>';
     } finally {
         showSpinner(false);
     }

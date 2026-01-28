@@ -88,107 +88,173 @@ const categories = {
 // Initialize database
 function initializeDatabase() {
   db.serialize(() => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) console.error('Error creating categories table:', err);
-    });
+    // Create tables
+    db.run(`CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-    db.run(`
-      CREATE TABLE IF NOT EXISTS articles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT,
-        link TEXT UNIQUE NOT NULL,
-        image_url TEXT,
-        pub_date DATETIME,
-        source TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(category_id) REFERENCES categories(id)
-      )
-    `, (err) => {
-      if (err) console.error('Error creating articles table:', err);
-    });
+    db.run(`CREATE TABLE IF NOT EXISTS articles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      link TEXT UNIQUE NOT NULL,
+      image_url TEXT,
+      pub_date DATETIME,
+      source TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(category_id) REFERENCES categories(id)
+    )`);
 
-    db.run(`
-      CREATE TABLE IF NOT EXISTS rss_feeds (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category_id INTEGER NOT NULL,
-        url TEXT NOT NULL,
-        last_updated DATETIME,
-        FOREIGN KEY(category_id) REFERENCES categories(id)
-      )
-    `, (err) => {
-      if (err) console.error('Error creating rss_feeds table:', err);
-    });
+    db.run(`CREATE TABLE IF NOT EXISTS rss_feeds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER NOT NULL,
+      url TEXT NOT NULL,
+      last_updated DATETIME,
+      FOREIGN KEY(category_id) REFERENCES categories(id)
+    )`);
 
-    // Insert categories
+    // Insert categories with error handling
+    console.log('Inserting categories...');
     Object.keys(categories).forEach(categoryName => {
-      db.run('INSERT OR IGNORE INTO categories (name) VALUES (?)', [categoryName], (err) => {
-        if (err && err.code !== 'SQLITE_CONSTRAINT') console.error('Error inserting category:', err);
+      db.run('INSERT OR IGNORE INTO categories (name) VALUES (?)', [categoryName], function(err) {
+        if (err) {
+          console.error(`Error inserting category ${categoryName}:`, err);
+        } else {
+          console.log(`✓ Category inserted: ${categoryName}`);
+        }
       });
     });
 
-    // Schedule feed fetch after tables are created
+    // Wait for tables to be created and start fetching feeds
     setTimeout(() => {
-      console.log('Database initialized successfully');
+      console.log('Database initialized - Starting RSS feed fetch...');
       fetchAllFeeds();
-    }, 500);
+    }, 1000);
   });
 }
 
-// Fetch all feeds
+// Fetch all feeds with better error handling
 async function fetchAllFeeds() {
-  db.all('SELECT id, name FROM categories', async (err, categories) => {
-    if (err) console.error(err);
+  db.all('SELECT id, name FROM categories', async (err, dbCategories) => {
+    if (err) {
+      console.error('Error fetching categories from DB:', err);
+      return;
+    }
     
-    for (const cat of categories) {
-      const feeds = global.categories[cat.name];
-      if (feeds) {
+    if (!dbCategories || dbCategories.length === 0) {
+      console.warn('No categories found in database');
+      return;
+    }
+
+    console.log(`Found ${dbCategories.length} categories. Starting feed fetch...`);
+    
+    let feedCount = 0;
+    let successCount = 0;
+
+    for (const cat of dbCategories) {
+      const feeds = categories[cat.name]; // Use the local categories object
+      if (feeds && Array.isArray(feeds)) {
         for (const feedUrl of feeds) {
-          await fetchAndStoreFeed(cat.id, feedUrl, cat.name);
+          feedCount++;
+          const result = await fetchAndStoreFeed(cat.id, feedUrl, cat.name);
+          if (result) successCount++;
         }
       }
     }
+
+    console.log(`✓ Feed fetch complete: ${successCount}/${feedCount} feeds processed`);
   });
 }
 
-// Fetch and store individual feed
+// Fetch and store individual feed with timeout
 async function fetchAndStoreFeed(categoryId, feedUrl, categoryName) {
   try {
-    const feed = await parser.parseURL(feedUrl);
+    console.log(`Fetching: ${categoryName} <- ${feedUrl}`);
     
-    if (feed.items && feed.items.length > 0) {
+    // Set timeout to 10 seconds
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    
+    const feed = await Promise.race([
+      parser.parseURL(feedUrl),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+    ]);
+    
+    clearTimeout(timeout);
+    
+    if (feed && feed.items && feed.items.length > 0) {
+      let insertCount = 0;
+      
       feed.items.slice(0, 20).forEach(item => {
-        const imageUrl = item.enclosure?.url || item.image?.url || item['media:content']?.['url'] || '';
-        
-        db.run(
-          `INSERT OR IGNORE INTO articles 
-           (category_id, title, description, link, image_url, pub_date, source) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [categoryId, item.title, item.content || item.summary, item.link, imageUrl, item.pubDate, feedUrl]
-        );
+        if (item.title && item.link) {
+          const imageUrl = item.enclosure?.url || item.image?.url || item['media:content']?.['url'] || '';
+          
+          db.run(
+            `INSERT OR IGNORE INTO articles 
+             (category_id, title, description, link, image_url, pub_date, source) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              categoryId, 
+              item.title.substring(0, 500), 
+              (item.content || item.summary || '').substring(0, 1000), 
+              item.link, 
+              imageUrl, 
+              item.pubDate, 
+              feedUrl
+            ],
+            function(err) {
+              if (err && err.code !== 'SQLITE_CONSTRAINT') {
+                console.error(`Error inserting article from ${feedUrl}:`, err);
+              } else if (!err) {
+                insertCount++;
+              }
+            }
+          );
+        }
       });
       
-      db.run('UPDATE rss_feeds SET last_updated = CURRENT_TIMESTAMP WHERE url = ?', [feedUrl]);
+      console.log(`✓ ${categoryName}: Inserted ${insertCount} articles from ${feedUrl}`);
+      return true;
     }
+    
+    return false;
   } catch (error) {
-    console.error(`Error fetching feed ${feedUrl}:`, error.message);
+    console.warn(`⚠ Error fetching ${feedUrl}: ${error.message}`);
+    return false;
   }
 }
 
 // Routes
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  db.get('SELECT COUNT(*) as count FROM categories', (err, result) => {
+    const catCount = result ? result.count : 0;
+    db.get('SELECT COUNT(*) as count FROM articles', (err, result) => {
+      const artCount = result ? result.count : 0;
+      res.json({
+        status: 'ok',
+        categories: catCount,
+        articles: artCount,
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+});
+
 // Get all categories
 app.get('/api/categories', (req, res) => {
   db.all('SELECT * FROM categories ORDER BY name', (err, rows) => {
-    if (err) res.status(500).json({ error: err.message });
-    else res.json(rows);
+    if (err) {
+      console.error('Error fetching categories:', err);
+      res.status(500).json({ error: err.message, categories: [] });
+    } else {
+      console.log(`Returning ${rows ? rows.length : 0} categories`);
+      res.json(rows || []);
+    }
   });
 });
 
