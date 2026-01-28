@@ -588,3 +588,50 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--success);
 }
+/* Google AdSense Styling */
+.ad-container {
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 90px;
+    background: rgba(26, 26, 62, 0.5);
+    border-radius: 8px;
+    padding: 15px 0;
+}
+
+.ad-top {
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+.ad-middle {
+    float: right;
+    margin-left: 20px;
+    margin-bottom: 20px;
+}
+
+.ad-bottom {
+    margin-top: 40px;
+    margin-bottom: 30px;
+}
+
+/* Responsive Ads */
+@media (max-width: 768px) {
+    .ad-middle {
+        float: none;
+        margin-left: 0;
+        margin-bottom: 20px;
+    }
+
+    .ad-container {
+        min-height: 100px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ad-container {
+        margin: 20px 0;
+        padding: 10px 0;
+    }
+}
