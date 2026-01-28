@@ -116,9 +116,12 @@ async function loadArticles(categoryId = null) {
         }
         
         allArticles = await response.json();
-        console.log('Articles loaded:', allArticles.length);
+        console.log('Articles loaded:', allArticles.length, 'from category:', categoryId || 'all');
+        
+        // Reset display counter
         displayedCount = 0;
         
+        // Clear container
         articlesContainer.innerHTML = '';
         
         // Show featured article
@@ -126,7 +129,7 @@ async function loadArticles(categoryId = null) {
             displayFeaturedArticle(allArticles[0]);
             displayArticles(allArticles.slice(1));
         } else {
-            articlesContainer.innerHTML = '<div class="no-results"><h2>No articles available yet</h2><p>RSS feeds are being fetched. Please refresh in a few moments.</p></div>';
+            articlesContainer.innerHTML = '<div class="no-results"><h2>No articles available</h2><p>No articles found in this category. Try another one!</p></div>';
         }
         
         updateLoadMoreButton();
