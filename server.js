@@ -128,12 +128,20 @@ function initializeDatabase() {
       });
     });
 
-    // Wait for tables to be created and start fetching feeds
-    setTimeout(() => {
-      console.log('Database initialized - Starting RSS feed fetch...');
-      fetchAllFeeds();
-    }, 1000);
+    console.log('Database tables created successfully');
   });
+  
+  // Start fetching feeds in background (don't wait for startup)
+  setTimeout(() => {
+    console.log('Starting initial RSS feed fetch in background...');
+    fetchAllFeeds();
+    
+    // Re-fetch every 30 minutes
+    setInterval(() => {
+      console.log('Refreshing RSS feeds...');
+      fetchAllFeeds();
+    }, 30 * 60 * 1000);
+  }, 2000);
 }
 
 // Fetch all feeds with better error handling
@@ -289,8 +297,14 @@ app.get('/api/articles', (req, res) => {
         return res.status(500).json({ error: err.message, rows: [] });
       }
       if (!rows || rows.length === 0) {
-        console.warn('No articles found in database');
-        return res.json([]);
+        console.warn('No articles in database yet - returning sample articles');
+        try {
+          const sampleArticles = JSON.parse(fs.readFileSync(path.join(__dirname, 'articles-sample.json'), 'utf8'));
+          return res.json(sampleArticles);
+        } catch (e) {
+          console.error('Error loading sample articles:', e);
+          return res.json([]);
+        }
       }
       res.json(rows);
     }
