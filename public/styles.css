@@ -208,7 +208,7 @@ body {
 
     .navbar {
         position: fixed;
-        top: 140px;
+        top: 100px;
         left: 0;
         right: 0;
         background: var(--secondary);
@@ -281,6 +281,7 @@ body {
 /* Featured Section */
 .featured-section {
     margin-bottom: 50px;
+    margin-top: 0;
 }
 
 .featured-article {
@@ -619,6 +620,15 @@ body {
 
     .header {
         padding: 15px 0;
+    }
+
+    .main-content {
+        padding: 10px 15px;
+    }
+
+    .featured-section {
+        margin-bottom: 20px;
+        margin-top: -10px;
     }
 
     .logo {
