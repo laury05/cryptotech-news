@@ -1,5 +1,5 @@
-// API Configuration
-const API_BASE = 'http://localhost:5000/api';
+// API Configuration - Use relative path to work on any domain
+const API_BASE = '/api';
 
 // State
 let allArticles = [];
