@@ -118,6 +118,15 @@ async function loadArticles(categoryId = null) {
         allArticles = await response.json();
         console.log('Articles loaded:', allArticles.length, 'from category:', categoryId || 'all');
         
+        // Sort articles by date (newest first)
+        allArticles.sort((a, b) => {
+            const dateA = new Date(a.pub_date || 0).getTime();
+            const dateB = new Date(b.pub_date || 0).getTime();
+            return dateB - dateA; // Descending order (newest first)
+        });
+        
+        console.log('Articles sorted by date (newest first)');
+        
         // Reset display counter
         displayedCount = 0;
         
