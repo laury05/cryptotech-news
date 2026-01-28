@@ -4,6 +4,8 @@ const path = require('path');
 const cors = require('cors');
 const RSSParser = require('rss-parser');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const os = require('os');
 
 const app = express();
 const parser = new RSSParser();
@@ -13,10 +15,24 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Database path - use persistent directory on Render
+const dbDir = process.env.NODE_ENV === 'production' ? '/tmp' : __dirname;
+const dbPath = path.join(dbDir, 'news.db');
+
+// Ensure directory exists
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+console.log('Using database path:', dbPath);
+
 // Database initialization
-const db = new sqlite3.Database(path.join(__dirname, 'news.db'), (err) => {
-  if (err) console.error(err);
-  else console.log('Connected to SQLite database');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Database error:', err);
+  } else {
+    console.log('Connected to SQLite database at:', dbPath);
+  }
   initializeDatabase();
 });
 
@@ -198,12 +214,19 @@ app.get('/api/articles', (req, res) => {
   
   db.all(
     `SELECT a.*, c.name as category_name FROM articles a
-     JOIN categories c ON a.category_id = c.id
+     LEFT JOIN categories c ON a.category_id = c.id
      ORDER BY a.pub_date DESC LIMIT ?`,
     [limit],
     (err, rows) => {
-      if (err) res.status(500).json({ error: err.message });
-      else res.json(rows);
+      if (err) {
+        console.error('Error fetching articles:', err);
+        return res.status(500).json({ error: err.message, rows: [] });
+      }
+      if (!rows || rows.length === 0) {
+        console.warn('No articles found in database');
+        return res.json([]);
+      }
+      res.json(rows);
     }
   );
 });
